@@ -36,20 +36,25 @@ class WorkflowConfiguration:
     search_api: SearchAPI = SearchAPI.TAVILY
     search_api_config: Optional[Dict[str, Any]] = None
     process_search_results: Literal["summarize", "split_and_rerank"] | None = None
-    summarization_model_provider: str = "anthropic"
-    summarization_model: str = "claude-3-5-haiku-latest"
+    summarization_model_provider: str = "azure_openai"
+    summarization_model: str = "shelle-wus-acceptance-gpt-4o-provisionedmanaged"
     max_structured_output_retries: int = 3
     include_source_str: bool = False
     
     # Workflow-specific configuration
     number_of_queries: int = 2 # Number of search queries to generate per iteration
     max_search_depth: int = 2 # Maximum number of reflection + search iterations
-    planner_provider: str = "anthropic"
-    planner_model: str = "claude-3-7-sonnet-latest"
+    planner_provider: str = "azure_openai"
+    planner_model: str = "shelle-wus-acceptance-gpt-4o-provisionedmanaged"
     planner_model_kwargs: Optional[Dict[str, Any]] = None
-    writer_provider: str = "anthropic"
-    writer_model: str = "claude-3-7-sonnet-latest"
+    writer_provider: str = "azure_openai"
+    writer_model: str = "shelle-wus-acceptance-gpt-4o-provisionedmanaged"
     writer_model_kwargs: Optional[Dict[str, Any]] = None
+    
+    # Azure OpenAI configuration
+    azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+    azure_openai_api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
 
     @classmethod
     def from_runnable_config(
@@ -73,19 +78,25 @@ class MultiAgentConfiguration:
     search_api: SearchAPI = SearchAPI.TAVILY
     search_api_config: Optional[Dict[str, Any]] = None
     process_search_results: Literal["summarize", "split_and_rerank"] | None = None
-    summarization_model_provider: str = "anthropic"
-    summarization_model: str = "claude-3-5-haiku-latest"
+    summarization_model_provider: str = "azure_openai"
+    summarization_model: str = "shelle-wus-acceptance-gpt-4o-provisionedmanaged"
     include_source_str: bool = False
     
     # Multi-agent specific configuration
     number_of_queries: int = 2 # Number of search queries to generate per section
-    supervisor_model: str = "anthropic:claude-3-7-sonnet-latest"
-    researcher_model: str = "anthropic:claude-3-7-sonnet-latest"
+    supervisor_model: str = "azure_openai:shelle-wus-acceptance-gpt-4o-provisionedmanaged"
+    researcher_model: str = "azure_openai:shelle-wus-acceptance-gpt-4o-provisionedmanaged"
     ask_for_clarification: bool = False # Whether to ask for clarification from the user
     # MCP server configuration
     mcp_server_config: Optional[Dict[str, Any]] = None
     mcp_prompt: Optional[str] = None
     mcp_tools_to_include: Optional[list[str]] = None
+    
+    # Azure OpenAI connection details
+    azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
+    azure_openai_api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+    
 
     @classmethod
     def from_runnable_config(

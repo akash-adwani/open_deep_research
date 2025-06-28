@@ -13,6 +13,7 @@ from langgraph.types import Command, Send
 from langgraph.graph import START, END, StateGraph
 
 from open_deep_research.configuration import MultiAgentConfiguration
+from open_deep_research.utils import get_chat_model
 from open_deep_research.utils import (
     get_config_value,
     tavily_search,
@@ -194,9 +195,19 @@ async def supervisor(state: ReportState, config: RunnableConfig):
     # Get configuration
     configurable = MultiAgentConfiguration.from_runnable_config(config)
     supervisor_model = get_config_value(configurable.supervisor_model)
+    
+    azure_config = {
+        "azure_openai_endpoint": configurable.azure_openai_endpoint,
+        "azure_openai_api_key": configurable.azure_openai_api_key,
+        "azure_openai_api_version": configurable.azure_openai_api_version,
+    }
 
-    # Initialize the model
-    llm = init_chat_model(model=supervisor_model)
+    # Initialize the model - handle provider:model format
+    if ":" in supervisor_model:
+        provider, model = supervisor_model.split(":", 1)
+        llm = get_chat_model(model=model, model_provider=provider, azure_config=azure_config)
+    else:
+        llm = get_chat_model(model=supervisor_model, model_provider="openai", azure_config=azure_config)
     
     # If sections have been completed, but we don't yet have the final report, then we need to initiate writing the introduction and conclusion
     if state.get("completed_sections") and not state.get("final_report"):
@@ -354,8 +365,18 @@ async def research_agent(state: SectionState, config: RunnableConfig):
     configurable = MultiAgentConfiguration.from_runnable_config(config)
     researcher_model = get_config_value(configurable.researcher_model)
     
-    # Initialize the model
-    llm = init_chat_model(model=researcher_model)
+    azure_config = {
+        "azure_openai_endpoint": configurable.azure_openai_endpoint,
+        "azure_openai_api_key": configurable.azure_openai_api_key,
+        "azure_openai_api_version": configurable.azure_openai_api_version,
+    }
+    
+    # Initialize the model - handle provider:model format
+    if ":" in researcher_model:
+        provider, model = researcher_model.split(":", 1)
+        llm = get_chat_model(model=model, model_provider=provider, azure_config=azure_config)
+    else:
+        llm = get_chat_model(model=researcher_model, model_provider="openai", azure_config=azure_config)
 
     # Get tools based on configuration
     research_tool_list = await get_research_tools(config)

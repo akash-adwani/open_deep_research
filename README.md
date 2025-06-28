@@ -104,6 +104,41 @@ Open Deep Research is compatible with many different LLMs:
 * You can select any model that is integrated [with the `init_chat_model()` API](https://python.langchain.com/docs/how_to/chat_models_universal_init/)
 * See full list of supported integrations [here](https://python.langchain.com/api_reference/langchain/chat_models/langchain.chat_models.base.init_chat_model.html)
 
+### Azure OpenAI Support
+
+Open Deep Research now supports Azure OpenAI alongside other providers. To use Azure OpenAI:
+
+1. **Set up environment variables:**
+   ```bash
+   AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
+   AZURE_OPENAI_API_KEY=your-azure-openai-api-key
+   AZURE_OPENAI_API_VERSION=2024-02-15-preview
+   ```
+
+2. **Configure your models to use Azure OpenAI:**
+   ```python
+   from open_deep_research.configuration import WorkflowConfiguration
+   
+   config = WorkflowConfiguration(
+       planner_provider="azure_openai",
+       planner_model="your-gpt-4-deployment-name",
+       writer_provider="azure_openai", 
+       writer_model="your-gpt-4-deployment-name"
+   )
+   ```
+
+3. **For multi-agent setup:**
+   ```python
+   from open_deep_research.configuration import MultiAgentConfiguration
+   
+   config = MultiAgentConfiguration(
+       supervisor_model="azure_openai:your-gpt-4-deployment-name",
+       researcher_model="azure_openai:your-gpt-4-deployment-name"
+   )
+   ```
+
+See [AZURE_OPENAI_SETUP.md](AZURE_OPENAI_SETUP.md) for detailed configuration instructions and [examples/azure_openai_config.py](examples/azure_openai_config.py) for complete examples.
+
 ### Using the package
 
 ```bash

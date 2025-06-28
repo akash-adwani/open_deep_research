@@ -35,7 +35,8 @@ from open_deep_research.utils import (
     get_config_value, 
     get_search_params, 
     select_and_execute_search,
-    get_today_str
+    get_today_str,
+    get_chat_model
 )
 
 ## Nodes -- 
@@ -82,7 +83,19 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig):
     writer_provider = get_config_value(configurable.writer_provider)
     writer_model_name = get_config_value(configurable.writer_model)
     writer_model_kwargs = get_config_value(configurable.writer_model_kwargs or {})
-    writer_model = init_chat_model(model=writer_model_name, model_provider=writer_provider, model_kwargs=writer_model_kwargs) 
+    
+    azure_config = {
+        "azure_openai_endpoint": configurable.azure_openai_endpoint,
+        "azure_openai_api_key": configurable.azure_openai_api_key,
+        "azure_openai_api_version": configurable.azure_openai_api_version,
+    }
+    
+    writer_model = get_chat_model(
+        model=writer_model_name, 
+        model_provider=writer_provider, 
+        azure_config=azure_config,
+        **writer_model_kwargs
+    ) 
     structured_llm = writer_model.with_structured_output(Queries)
 
     # Format system instructions

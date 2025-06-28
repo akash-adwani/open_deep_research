@@ -36,7 +36,8 @@ from open_deep_research.utils import (
     get_config_value, 
     get_search_params, 
     select_and_execute_search,
-    get_today_str
+    get_today_str,
+    get_chat_model
 )
 
 ## Nodes
@@ -54,7 +55,20 @@ async def clarify_with_user(state: ReportState, config: RunnableConfig):
     writer_provider = get_config_value(configurable.writer_provider)
     writer_model_name = get_config_value(configurable.writer_model)
     writer_model_kwargs = get_config_value(configurable.writer_model_kwargs or {})
-    writer_model = init_chat_model(model=writer_model_name, model_provider=writer_provider, model_kwargs=writer_model_kwargs) 
+    
+    azure_config = {
+        "azure_openai_endpoint": configurable.azure_openai_endpoint,
+        "azure_openai_api_key": configurable.azure_openai_api_key,
+        "azure_openai_api_version": configurable.azure_openai_api_version,
+    }
+    
+    writer_model = get_chat_model(
+        model=writer_model_name, 
+        model_provider=writer_provider, 
+        azure_config=azure_config,
+        **writer_model_kwargs
+    )
+    
     structured_llm = writer_model.with_structured_output(ClarifyWithUser)
     system_instructions = clarify_with_user_instructions.format(messages=get_buffer_string(messages))
     results = await structured_llm.ainvoke([SystemMessage(content=system_instructions),
@@ -81,7 +95,19 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig) -> Co
     writer_provider = get_config_value(configurable.writer_provider)
     writer_model_name = get_config_value(configurable.writer_model)
     writer_model_kwargs = get_config_value(configurable.writer_model_kwargs or {})
-    writer_model = init_chat_model(model=writer_model_name, model_provider=writer_provider, model_kwargs=writer_model_kwargs) 
+    
+    azure_config = {
+        "azure_openai_endpoint": configurable.azure_openai_endpoint,
+        "azure_openai_api_key": configurable.azure_openai_api_key,
+        "azure_openai_api_version": configurable.azure_openai_api_version,
+    }
+    
+    writer_model = get_chat_model(
+        model=writer_model_name, 
+        model_provider=writer_provider, 
+        azure_config=azure_config,
+        **writer_model_kwargs
+    )
     structured_llm = writer_model.with_structured_output(Queries)
 
     system_instructions_query = report_planner_query_writer_instructions.format(
@@ -100,21 +126,33 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig) -> Co
     planner_provider = get_config_value(configurable.planner_provider)
     planner_model = get_config_value(configurable.planner_model)
     planner_model_kwargs = get_config_value(configurable.planner_model_kwargs or {})
+    
+    azure_config = {
+        "azure_openai_endpoint": configurable.azure_openai_endpoint,
+        "azure_openai_api_key": configurable.azure_openai_api_key,
+        "azure_openai_api_version": configurable.azure_openai_api_version,
+    }
 
     planner_message = """Generate the sections of the report. Your response must include a 'sections' field containing a list of sections. 
                         Each section must have: name, description, research, and content fields."""
     
     if planner_model == "claude-3-7-sonnet-latest":
         # Allocate a thinking budget for claude-3-7-sonnet-latest as the planner model
-        planner_llm = init_chat_model(model=planner_model, 
-                                      model_provider=planner_provider, 
-                                      max_tokens=20_000, 
-                                      thinking={"type": "enabled", "budget_tokens": 16_000})
+        planner_llm = get_chat_model(
+            model=planner_model, 
+            model_provider=planner_provider, 
+            azure_config=azure_config,
+            max_tokens=20_000, 
+            thinking={"type": "enabled", "budget_tokens": 16_000}
+        )
     else:
         # With other models, thinking tokens are not specifically allocated
-        planner_llm = init_chat_model(model=planner_model, 
-                                      model_provider=planner_provider,
-                                      model_kwargs=planner_model_kwargs)
+        planner_llm = get_chat_model(
+            model=planner_model, 
+            model_provider=planner_provider,
+            azure_config=azure_config,
+            **planner_model_kwargs
+        )
     
     structured_llm = planner_llm.with_structured_output(Sections)
     report_sections = await structured_llm.ainvoke([SystemMessage(content=system_instructions_sections),
@@ -165,7 +203,19 @@ async def generate_queries(state: SectionState, config: RunnableConfig):
     writer_provider = get_config_value(configurable.writer_provider)
     writer_model_name = get_config_value(configurable.writer_model)
     writer_model_kwargs = get_config_value(configurable.writer_model_kwargs or {})
-    writer_model = init_chat_model(model=writer_model_name, model_provider=writer_provider, model_kwargs=writer_model_kwargs) 
+    
+    azure_config = {
+        "azure_openai_endpoint": configurable.azure_openai_endpoint,
+        "azure_openai_api_key": configurable.azure_openai_api_key,
+        "azure_openai_api_version": configurable.azure_openai_api_version,
+    }
+    
+    writer_model = get_chat_model(
+        model=writer_model_name, 
+        model_provider=writer_provider, 
+        azure_config=azure_config,
+        **writer_model_kwargs
+    )
     structured_llm = writer_model.with_structured_output(Queries)
     system_instructions = query_writer_instructions.format(messages=get_buffer_string(messages), 
                                                            section_topic=section.description, 
@@ -203,11 +253,19 @@ async def write_section(state: SectionState, config: RunnableConfig):
     writer_provider = get_config_value(configurable.writer_provider)
     writer_model_name = get_config_value(configurable.writer_model)
     writer_model_kwargs = get_config_value(configurable.writer_model_kwargs or {})
-    writer_model = init_chat_model(
+    
+    azure_config = {
+        "azure_openai_endpoint": configurable.azure_openai_endpoint,
+        "azure_openai_api_key": configurable.azure_openai_api_key,
+        "azure_openai_api_version": configurable.azure_openai_api_version,
+    }
+    
+    writer_model = get_chat_model(
         model=writer_model_name,
         model_provider=writer_provider,
-        model_kwargs=writer_model_kwargs,
-        max_retries=configurable.max_structured_output_retries
+        azure_config=azure_config,
+        max_retries=configurable.max_structured_output_retries,
+        **writer_model_kwargs
     ).with_structured_output(SectionOutput)
 
     section_content = await writer_model.ainvoke([SystemMessage(content=section_writer_instructions),
@@ -227,18 +285,30 @@ async def write_section(state: SectionState, config: RunnableConfig):
     planner_provider = get_config_value(configurable.planner_provider)
     planner_model = get_config_value(configurable.planner_model)
     planner_model_kwargs = get_config_value(configurable.planner_model_kwargs or {})
+    
+    azure_config = {
+        "azure_openai_endpoint": configurable.azure_openai_endpoint,
+        "azure_openai_api_key": configurable.azure_openai_api_key,
+        "azure_openai_api_version": configurable.azure_openai_api_version,
+    }
 
     if planner_model == "claude-3-7-sonnet-latest":
         # Allocate a thinking budget for claude-3-7-sonnet-latest as the planner model
-        reflection_model = init_chat_model(model=planner_model, 
-                                           model_provider=planner_provider, 
-                                           max_tokens=20_000, 
-                                           thinking={"type": "enabled", "budget_tokens": 16_000}).with_structured_output(Feedback)
+        reflection_model = get_chat_model(
+            model=planner_model, 
+            model_provider=planner_provider, 
+            azure_config=azure_config,
+            max_tokens=20_000, 
+            thinking={"type": "enabled", "budget_tokens": 16_000}
+        ).with_structured_output(Feedback)
     else:
-        reflection_model = init_chat_model(model=planner_model, 
-                                           model_provider=planner_provider,
-                                           max_retries=configurable.max_structured_output_retries,
-                                           model_kwargs=planner_model_kwargs).with_structured_output(Feedback)
+        reflection_model = get_chat_model(
+            model=planner_model, 
+            model_provider=planner_provider,
+            azure_config=azure_config,
+            max_retries=configurable.max_structured_output_retries,
+            **planner_model_kwargs
+        ).with_structured_output(Feedback)
 
     feedback = await reflection_model.ainvoke([SystemMessage(content=section_grader_instructions_formatted),
                                         HumanMessage(content=section_grader_message)])
@@ -260,7 +330,19 @@ async def write_final_sections(state: SectionState, config: RunnableConfig):
     writer_provider = get_config_value(configurable.writer_provider)
     writer_model_name = get_config_value(configurable.writer_model)
     writer_model_kwargs = get_config_value(configurable.writer_model_kwargs or {})
-    writer_model = init_chat_model(model=writer_model_name, model_provider=writer_provider, model_kwargs=writer_model_kwargs) 
+    
+    azure_config = {
+        "azure_openai_endpoint": configurable.azure_openai_endpoint,
+        "azure_openai_api_key": configurable.azure_openai_api_key,
+        "azure_openai_api_version": configurable.azure_openai_api_version,
+    }
+    
+    writer_model = get_chat_model(
+        model=writer_model_name, 
+        model_provider=writer_provider, 
+        azure_config=azure_config,
+        **writer_model_kwargs
+    ) 
 
     messages = state["messages"]
     section = state["section"]

@@ -1409,9 +1409,16 @@ async def tavily_search(
         else:
             extra_kwargs = {}
 
-        summarization_model = init_chat_model(
+        azure_config = {
+            "azure_openai_endpoint": getattr(configurable, 'azure_openai_endpoint', None),
+            "azure_openai_api_key": getattr(configurable, 'azure_openai_api_key', None),
+            "azure_openai_api_version": getattr(configurable, 'azure_openai_api_version', None),
+        }
+
+        summarization_model = get_chat_model(
             model=configurable.summarization_model,
             model_provider=configurable.summarization_model_provider,
+            azure_config=azure_config,
             max_retries=configurable.max_structured_output_retries,
             **extra_kwargs
         )
@@ -1633,3 +1640,88 @@ async def load_mcp_server_config(path: str) -> dict:
 
     config = await asyncio.to_thread(_load)
     return config
+
+def init_azure_chat_model(
+    model: str,
+    azure_endpoint: Optional[str] = None,
+    api_key: Optional[str] = None,
+    api_version: Optional[str] = None,
+    **kwargs
+) -> BaseChatModel:
+    """
+    Initialize Azure OpenAI chat model with proper configuration.
+    
+    Args:
+        model: The Azure OpenAI deployment name
+        azure_endpoint: Azure OpenAI endpoint URL
+        api_key: Azure OpenAI API key
+        api_version: Azure OpenAI API version
+        **kwargs: Additional keyword arguments for the model
+    
+    Returns:
+        BaseChatModel: Initialized Azure OpenAI chat model
+    """
+    from langchain_openai import AzureChatOpenAI
+    
+    # Get values from environment variables if not provided
+    endpoint = azure_endpoint or os.getenv("AZURE_OPENAI_ENDPOINT")
+    key = api_key or os.getenv("AZURE_OPENAI_API_KEY")
+    version = api_version or os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+    
+    if not endpoint or not key:
+        raise ValueError(
+            "Azure OpenAI endpoint and API key must be provided either as parameters "
+            "or through AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY environment variables"
+        )
+    
+    return AzureChatOpenAI(
+        azure_deployment=model,
+        azure_endpoint=endpoint,
+        api_key=key,
+        api_version=version,
+        **kwargs
+    )
+
+def get_chat_model(
+    model: str,
+    model_provider: str,
+    azure_config: Optional[Dict[str, Any]] = None,
+    **kwargs
+) -> BaseChatModel:
+    """
+    Get a chat model based on provider and configuration.
+    
+    Args:
+        model: Model name or deployment name
+        model_provider: Provider name (e.g., "openai", "azure_openai", "anthropic")
+        azure_config: Azure OpenAI configuration dictionary
+        **kwargs: Additional keyword arguments for the model
+    
+    Returns:
+        BaseChatModel: Initialized chat model
+    """
+    if model_provider.lower() == "azure_openai":
+        azure_config = azure_config or {}
+        # Only use Azure config if at least endpoint and key are provided
+        if azure_config.get("azure_openai_endpoint") and azure_config.get("azure_openai_api_key"):
+            return init_azure_chat_model(
+                model=model,
+                azure_endpoint=azure_config.get("azure_openai_endpoint"),
+                api_key=azure_config.get("azure_openai_api_key"),
+                api_version=azure_config.get("azure_openai_api_version"),
+                **kwargs
+            )
+        else:
+            # Fall back to regular OpenAI if Azure config is incomplete
+            return init_chat_model(
+                model=model,
+                model_provider="openai",
+                **kwargs
+            )
+    else:
+        # Use the standard init_chat_model for other providers
+        return init_chat_model(
+            model=model,
+            model_provider=model_provider,
+            **kwargs
+        )
