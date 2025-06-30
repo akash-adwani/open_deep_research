@@ -57,17 +57,22 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig):
     Returns:
         Dict containing the generated sections
     """
-
+    print("=== DEBUG: Entering generate_report_plan function ===")
+    print("Generating report plan...")
+    
     # Inputs
     topic = state["topic"]
+    print(f"DEBUG: Topic = {topic}")
 
     # Get list of feedback on the report plan
     feedback_list = state.get("feedback_on_report_plan", [])
+    print(f"DEBUG: Feedback list = {feedback_list}")
 
     # Concatenate feedback on the report plan into a single string
     feedback = " /// ".join(feedback_list) if feedback_list else ""
 
     # Get configuration
+    print("DEBUG: Getting configuration...")
     configurable = WorkflowConfiguration.from_runnable_config(config)
     report_structure = configurable.report_structure
     number_of_queries = configurable.number_of_queries
@@ -80,23 +85,31 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig):
         report_structure = str(report_structure)
 
     # Set writer model (model used for query writing)
+    print("DEBUG: Setting up writer model...")
     writer_provider = get_config_value(configurable.writer_provider)
     writer_model_name = get_config_value(configurable.writer_model)
     writer_model_kwargs = get_config_value(configurable.writer_model_kwargs or {})
+    print(f"DEBUG: Writer provider = {writer_provider}, model = {writer_model_name}")
     
     azure_config = {
         "azure_openai_endpoint": configurable.azure_openai_endpoint,
         "azure_openai_api_key": configurable.azure_openai_api_key,
         "azure_openai_api_version": configurable.azure_openai_api_version,
     }
+    print(f"DEBUG: Azure config API version = {azure_config['azure_openai_api_version']}")
     
+    print("DEBUG: About to call get_chat_model...")
     writer_model = get_chat_model(
         model=writer_model_name, 
         model_provider=writer_provider, 
         azure_config=azure_config,
         **writer_model_kwargs
     ) 
+    print("DEBUG: get_chat_model completed successfully")
+    
+    print("DEBUG: About to call with_structured_output...")
     structured_llm = writer_model.with_structured_output(Queries)
+    print("DEBUG: with_structured_output completed successfully")
 
     # Format system instructions
     system_instructions_query = report_planner_query_writer_instructions.format(
@@ -105,11 +118,11 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig):
         number_of_queries=number_of_queries,
         today=get_today_str()
     )
-
+    print("generating report plan")
     # Generate queries  
     results = await structured_llm.ainvoke([SystemMessage(content=system_instructions_query),
                                      HumanMessage(content="Generate search queries that will help with planning the sections of the report.")])
-
+    print("generated report plan")
     # Web search
     query_list = [query.search_query for query in results.queries]
 
@@ -131,16 +144,22 @@ async def generate_report_plan(state: ReportState, config: RunnableConfig):
     # Run the planner
     if planner_model == "claude-3-7-sonnet-latest":
         # Allocate a thinking budget for claude-3-7-sonnet-latest as the planner model
-        planner_llm = init_chat_model(model=planner_model, 
-                                      model_provider=planner_provider, 
-                                      max_tokens=20_000, 
-                                      thinking={"type": "enabled", "budget_tokens": 16_000})
+        planner_llm = get_chat_model(
+            model=planner_model, 
+            model_provider=planner_provider, 
+            azure_config=azure_config,
+            max_tokens=20_000, 
+            thinking={"type": "enabled", "budget_tokens": 16_000}
+        )
 
     else:
         # With other models, thinking tokens are not specifically allocated
-        planner_llm = init_chat_model(model=planner_model, 
-                                      model_provider=planner_provider,
-                                      model_kwargs=planner_model_kwargs)
+        planner_llm = get_chat_model(
+            model=planner_model, 
+            model_provider=planner_provider,
+            azure_config=azure_config,
+            **planner_model_kwargs
+        )
     
     # Generate the report sections
     structured_llm = planner_llm.with_structured_output(Sections)
@@ -230,7 +249,20 @@ async def generate_queries(state: SectionState, config: RunnableConfig):
     writer_provider = get_config_value(configurable.writer_provider)
     writer_model_name = get_config_value(configurable.writer_model)
     writer_model_kwargs = get_config_value(configurable.writer_model_kwargs or {})
-    writer_model = init_chat_model(model=writer_model_name, model_provider=writer_provider, model_kwargs=writer_model_kwargs) 
+    
+    # Create Azure config for get_chat_model
+    azure_config = {
+        "azure_openai_endpoint": configurable.azure_openai_endpoint,
+        "azure_openai_api_key": configurable.azure_openai_api_key,
+        "azure_openai_api_version": configurable.azure_openai_api_version,
+    }
+    
+    writer_model = get_chat_model(
+        model=writer_model_name, 
+        model_provider=writer_provider, 
+        azure_config=azure_config,
+        **writer_model_kwargs
+    ) 
     structured_llm = writer_model.with_structured_output(Queries)
 
     # Format system instructions
@@ -238,11 +270,11 @@ async def generate_queries(state: SectionState, config: RunnableConfig):
                                                            section_topic=section.description, 
                                                            number_of_queries=number_of_queries,
                                                            today=get_today_str())
-
+    print("generating section queries")
     # Generate queries  
     queries = await structured_llm.ainvoke([SystemMessage(content=system_instructions),
                                      HumanMessage(content="Generate search queries on the provided topic.")])
-
+    print("generated section queries")
     return {"search_queries": queries.queries}
 
 async def search_web(state: SectionState, config: RunnableConfig):
@@ -315,7 +347,20 @@ async def write_section(state: SectionState, config: RunnableConfig) -> Command[
     writer_provider = get_config_value(configurable.writer_provider)
     writer_model_name = get_config_value(configurable.writer_model)
     writer_model_kwargs = get_config_value(configurable.writer_model_kwargs or {})
-    writer_model = init_chat_model(model=writer_model_name, model_provider=writer_provider, model_kwargs=writer_model_kwargs) 
+    
+    # Create Azure config for get_chat_model
+    azure_config = {
+        "azure_openai_endpoint": configurable.azure_openai_endpoint,
+        "azure_openai_api_key": configurable.azure_openai_api_key,
+        "azure_openai_api_version": configurable.azure_openai_api_version,
+    }
+    
+    writer_model = get_chat_model(
+        model=writer_model_name, 
+        model_provider=writer_provider, 
+        azure_config=azure_config,
+        **writer_model_kwargs
+    ) 
 
     section_content = await writer_model.ainvoke([SystemMessage(content=section_writer_instructions),
                                            HumanMessage(content=section_writer_inputs_formatted)])
@@ -337,16 +382,30 @@ async def write_section(state: SectionState, config: RunnableConfig) -> Command[
     planner_provider = get_config_value(configurable.planner_provider)
     planner_model = get_config_value(configurable.planner_model)
     planner_model_kwargs = get_config_value(configurable.planner_model_kwargs or {})
+    
+    # Create Azure config for get_chat_model
+    azure_config = {
+        "azure_openai_endpoint": configurable.azure_openai_endpoint,
+        "azure_openai_api_key": configurable.azure_openai_api_key,
+        "azure_openai_api_version": configurable.azure_openai_api_version,
+    }
 
     if planner_model == "claude-3-7-sonnet-latest":
         # Allocate a thinking budget for claude-3-7-sonnet-latest as the planner model
-        reflection_model = init_chat_model(model=planner_model, 
-                                           model_provider=planner_provider, 
-                                           max_tokens=20_000, 
-                                           thinking={"type": "enabled", "budget_tokens": 16_000}).with_structured_output(Feedback)
+        reflection_model = get_chat_model(
+            model=planner_model, 
+            model_provider=planner_provider, 
+            azure_config=azure_config,
+            max_tokens=20_000, 
+            thinking={"type": "enabled", "budget_tokens": 16_000}
+        ).with_structured_output(Feedback)
     else:
-        reflection_model = init_chat_model(model=planner_model, 
-                                           model_provider=planner_provider, model_kwargs=planner_model_kwargs).with_structured_output(Feedback)
+        reflection_model = get_chat_model(
+            model=planner_model, 
+            model_provider=planner_provider, 
+            azure_config=azure_config,
+            **planner_model_kwargs
+        ).with_structured_output(Feedback)
     # Generate feedback
     feedback = await reflection_model.ainvoke([SystemMessage(content=section_grader_instructions_formatted),
                                         HumanMessage(content=section_grader_message)])
@@ -395,7 +454,20 @@ async def write_final_sections(state: SectionState, config: RunnableConfig):
     writer_provider = get_config_value(configurable.writer_provider)
     writer_model_name = get_config_value(configurable.writer_model)
     writer_model_kwargs = get_config_value(configurable.writer_model_kwargs or {})
-    writer_model = init_chat_model(model=writer_model_name, model_provider=writer_provider, model_kwargs=writer_model_kwargs) 
+    
+    # Create Azure config for get_chat_model
+    azure_config = {
+        "azure_openai_endpoint": configurable.azure_openai_endpoint,
+        "azure_openai_api_key": configurable.azure_openai_api_key,
+        "azure_openai_api_version": configurable.azure_openai_api_version,
+    }
+    
+    writer_model = get_chat_model(
+        model=writer_model_name, 
+        model_provider=writer_provider, 
+        azure_config=azure_config,
+        **writer_model_kwargs
+    ) 
     
     section_content = await writer_model.ainvoke([SystemMessage(content=system_instructions),
                                            HumanMessage(content="Generate a report section based on the provided sources.")])

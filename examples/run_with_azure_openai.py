@@ -36,9 +36,9 @@ async def main():
     config = WorkflowConfiguration(
         # Use Azure OpenAI for both planner and writer
         planner_provider="azure_openai",
-        planner_model="gpt-4o",  # Replace with your deployment name
+        planner_model="shelle-wus-acceptance-gpt-4o-provisionedmanaged",  # Replace with your deployment name
         writer_provider="azure_openai",
-        writer_model="gpt-4o",   # Replace with your deployment name
+        writer_model="shelle-wus-acceptance-gpt-4o-provisionedmanaged",   # Replace with your deployment name
         
         # Azure OpenAI settings (will use environment variables if not specified)
         azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
@@ -67,7 +67,7 @@ async def main():
     try:
         # Run the research workflow
         result = await graph.ainvoke(
-            {"messages": [{"role": "user", "content": f"Write a comprehensive research report about: {topic}"}]},
+            {"topic": topic},
             config={"configurable": config.__dict__}
         )
         

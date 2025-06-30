@@ -33,7 +33,7 @@ class WorkflowConfiguration:
     """Configuration for the workflow/graph-based implementation (graph.py)."""
     # Common configuration
     report_structure: str = DEFAULT_REPORT_STRUCTURE
-    search_api: SearchAPI = SearchAPI.TAVILY
+    search_api: SearchAPI = SearchAPI.NONE
     search_api_config: Optional[Dict[str, Any]] = None
     process_search_results: Literal["summarize", "split_and_rerank"] | None = None
     summarization_model_provider: str = "azure_openai"
@@ -52,9 +52,9 @@ class WorkflowConfiguration:
     writer_model_kwargs: Optional[Dict[str, Any]] = None
     
     # Azure OpenAI configuration
-    azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    azure_openai_api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+    azure_openai_endpoint: Optional[str] = None
+    azure_openai_api_key: Optional[str] = None
+    azure_openai_api_version: Optional[str] = "2024-08-01-preview"
 
     @classmethod
     def from_runnable_config(
@@ -64,18 +64,31 @@ class WorkflowConfiguration:
         configurable = (
             config["configurable"] if config and "configurable" in config else {}
         )
-        values: dict[str, Any] = {
-            f.name: os.environ.get(f.name.upper(), configurable.get(f.name))
-            for f in fields(cls)
-            if f.init
-        }
-        return cls(**{k: v for k, v in values.items() if v})
+        values: dict[str, Any] = {}
+        
+        for f in fields(cls):
+            if f.init:
+                field_name = f.name
+                # Handle Azure OpenAI specific environment variable names
+                if field_name == "azure_openai_endpoint":
+                    env_value = os.environ.get("AZURE_OPENAI_ENDPOINT")
+                elif field_name == "azure_openai_api_key":
+                    env_value = os.environ.get("AZURE_OPENAI_API_KEY")
+                elif field_name == "azure_openai_api_version":
+                    env_value = os.environ.get("AZURE_OPENAI_API_VERSION")
+                else:
+                    env_value = os.environ.get(field_name.upper())
+                
+                config_value = configurable.get(field_name)
+                values[field_name] = env_value or config_value
+        
+        return cls(**{k: v for k, v in values.items() if v is not None})
 
 @dataclass(kw_only=True)
 class MultiAgentConfiguration:
     """Configuration for the multi-agent implementation (multi_agent.py)."""
     # Common configuration
-    search_api: SearchAPI = SearchAPI.TAVILY
+    search_api: SearchAPI = SearchAPI.NONE #SearchAPI.TAVILY
     search_api_config: Optional[Dict[str, Any]] = None
     process_search_results: Literal["summarize", "split_and_rerank"] | None = None
     summarization_model_provider: str = "azure_openai"
@@ -92,10 +105,10 @@ class MultiAgentConfiguration:
     mcp_prompt: Optional[str] = None
     mcp_tools_to_include: Optional[list[str]] = None
     
-    # Azure OpenAI connection details
-    azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    azure_openai_api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+    # Azure OpenAI configuration
+    azure_openai_endpoint: Optional[str] = None
+    azure_openai_api_key: Optional[str] = None
+    azure_openai_api_version: Optional[str] = "2024-08-01-preview"
     
 
     @classmethod
@@ -106,12 +119,25 @@ class MultiAgentConfiguration:
         configurable = (
             config["configurable"] if config and "configurable" in config else {}
         )
-        values: dict[str, Any] = {
-            f.name: os.environ.get(f.name.upper(), configurable.get(f.name))
-            for f in fields(cls)
-            if f.init
-        }
-        return cls(**{k: v for k, v in values.items() if v})
+        values: dict[str, Any] = {}
+        
+        for f in fields(cls):
+            if f.init:
+                field_name = f.name
+                # Handle Azure OpenAI specific environment variable names
+                if field_name == "azure_openai_endpoint":
+                    env_value = os.environ.get("AZURE_OPENAI_ENDPOINT")
+                elif field_name == "azure_openai_api_key":
+                    env_value = os.environ.get("AZURE_OPENAI_API_KEY")
+                elif field_name == "azure_openai_api_version":
+                    env_value = os.environ.get("AZURE_OPENAI_API_VERSION")
+                else:
+                    env_value = os.environ.get(field_name.upper())
+                
+                config_value = configurable.get(field_name)
+                values[field_name] = env_value or config_value
+        
+        return cls(**{k: v for k, v in values.items() if v is not None})
 
 # Keep the old Configuration class for backward compatibility
 Configuration = WorkflowConfiguration

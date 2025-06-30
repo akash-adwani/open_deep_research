@@ -1540,6 +1540,9 @@ async def select_and_execute_search(search_api: str, query_list: list[str], para
         search_results = await google_search_async(query_list, **params_to_pass)
     elif search_api == "azureaisearch":
         search_results = await azureaisearch_search_async(query_list, **params_to_pass)
+    elif search_api == "none":
+        # Return empty string when no search is configured
+        return ""
     else:
         raise ValueError(f"Unsupported search API: {search_api}")
 
@@ -1627,7 +1630,11 @@ def stitch_documents_by_url(documents: list[Document]) -> list[Document]:
 
 def get_today_str() -> str:
     """Get current date in a human-readable format."""
-    return datetime.datetime.now().strftime("%a %b %-d, %Y")
+    import platform
+    if platform.system() == "Windows":
+        return datetime.datetime.now().strftime("%a %b %#d, %Y")
+    else:
+        return datetime.datetime.now().strftime("%a %b %-d, %Y")
 
 
 async def load_mcp_server_config(path: str) -> dict:
@@ -1666,7 +1673,7 @@ def init_azure_chat_model(
     # Get values from environment variables if not provided
     endpoint = azure_endpoint or os.getenv("AZURE_OPENAI_ENDPOINT")
     key = api_key or os.getenv("AZURE_OPENAI_API_KEY")
-    version = api_version or os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+    version = api_version or os.getenv("AZURE_OPENAI_API_VERSION", "2024-08-01-preview")
     
     if not endpoint or not key:
         raise ValueError(
@@ -1678,7 +1685,7 @@ def init_azure_chat_model(
         azure_deployment=model,
         azure_endpoint=endpoint,
         api_key=key,
-        api_version=version,
+        openai_api_version=version,
         **kwargs
     )
 

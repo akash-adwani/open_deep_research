@@ -21,7 +21,7 @@ azure_workflow_config = WorkflowConfiguration(
     # Azure OpenAI connection details
     azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
     azure_openai_api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
+    azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-08-01-preview"),
     
     # Other configuration options
     number_of_queries=3,
@@ -38,7 +38,7 @@ azure_multiagent_config = MultiAgentConfiguration(
     # Azure OpenAI connection details
     azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
     azure_openai_api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
+    azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-08-01-preview"),
     
     # Other configuration options
     number_of_queries=2,
@@ -58,7 +58,7 @@ mixed_config = WorkflowConfiguration(
     # Only Azure config needed since we're using Azure for planner
     azure_openai_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
     azure_openai_api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-02-15-preview")
+    azure_openai_api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-08-01-preview")
 )
 
 # Example usage in a script
